@@ -434,9 +434,52 @@
         .nav-btn.danger:hover { background: rgba(248,113,113,.08); border-color: rgba(248,113,113,.3); }
         .nav-sep { width: 1px; height: 20px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
 
+        /* ── Mobile actions dropdown ─────────────── */
+        .nav-desktop { display: flex; align-items: center; gap: 6px; }
+        .nav-mobile  { display: none; position: relative; }
+        .nav-menu-btn {
+            display: flex; align-items: center; gap: 5px;
+            padding: 7px 13px;
+            background: rgba(255,255,255,.04);
+            border: 1px solid var(--border);
+            border-radius: var(--rsm);
+            color: var(--dim);
+            font: inherit; font-size: .82rem; font-weight: 700;
+            cursor: pointer; white-space: nowrap;
+            transition: background .15s, color .15s, border-color .15s;
+        }
+        .nav-menu-btn:hover { background: var(--s2); color: var(--text); }
+        .nav-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            min-width: 180px;
+            background: var(--s1);
+            border: 1px solid var(--border);
+            border-radius: var(--rsm);
+            box-shadow: 0 8px 28px rgba(0,0,0,.45);
+            z-index: 200;
+            overflow: hidden;
+        }
+        .nav-dropdown.open { display: block; }
+        .nav-drop-item {
+            display: flex; align-items: center; gap: 10px;
+            width: 100%; padding: 13px 16px;
+            background: none; border: none;
+            color: var(--dim);
+            font: inherit; font-size: .88rem; font-weight: 600;
+            text-align: left; cursor: pointer;
+            transition: background .12s, color .12s;
+        }
+        .nav-drop-item:hover { background: var(--s2); color: var(--text); }
+        .nav-drop-item.danger { color: #f87171; }
+        .nav-drop-item.danger:hover { background: rgba(248,113,113,.08); }
+        .nav-drop-sep { height: 1px; background: var(--border); margin: 4px 0; }
+
         @media (max-width: 768px) {
-            .nav-btn span { display: none; }
-            .nav-btn { padding: 6px 9px; }
+            .nav-desktop { display: none; }
+            .nav-mobile  { display: block; }
         }
 
         /* ── Scoring mode toggle ────────────────── */
@@ -601,11 +644,25 @@
         </div>
         <div class="round-tag" id="round-tag">Round 1 of 5</div>
         <div class="nav-actions">
-            <button class="nav-btn" onclick="resetRound()">↺ <span>Reset Round</span></button>
-            <button class="nav-btn" onclick="resetGame()">⟳ <span>Reset Game</span></button>
-            <div class="nav-sep"></div>
-            <button class="nav-btn danger" onclick="endGameEarly()">⏹ <span>End Game</span></button>
-            <button class="nav-btn danger" onclick="newGame()">＋ <span>New Game</span></button>
+            <!-- desktop: individual buttons -->
+            <div class="nav-desktop">
+                <button class="nav-btn" onclick="resetRound()">↺ Reset Round</button>
+                <button class="nav-btn" onclick="resetGame()">⟳ Reset Game</button>
+                <div class="nav-sep"></div>
+                <button class="nav-btn danger" onclick="endGameEarly()">⏹ End Game</button>
+                <button class="nav-btn danger" onclick="newGame()">＋ New Game</button>
+            </div>
+            <!-- mobile: dropdown -->
+            <div class="nav-mobile">
+                <button class="nav-menu-btn" onclick="toggleNavMenu(event)">Actions ▾</button>
+                <div class="nav-dropdown" id="nav-dropdown">
+                    <button class="nav-drop-item" onclick="resetRound();closeNavMenu()">↺ &nbsp;Reset Round</button>
+                    <button class="nav-drop-item" onclick="resetGame();closeNavMenu()">⟳ &nbsp;Reset Game</button>
+                    <div class="nav-drop-sep"></div>
+                    <button class="nav-drop-item danger" onclick="endGameEarly();closeNavMenu()">⏹ &nbsp;End Game</button>
+                    <button class="nav-drop-item danger" onclick="newGame();closeNavMenu()">＋ &nbsp;New Game</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -708,6 +765,19 @@ let G = { playerCount:2, totalRounds:5, currentRound:1, players:[], rounds:[], l
 // player: { name, ci, rawTotal, rankPts }
 // rounds: array of [score_p0, score_p1, ...] per completed round
 // darts rounds store applied scores (0 for busted throws)
+
+/* ── Nav dropdown ───────────────────────────────── */
+
+function toggleNavMenu(e) {
+    e.stopPropagation();
+    document.getElementById('nav-dropdown').classList.toggle('open');
+}
+function closeNavMenu() {
+    document.getElementById('nav-dropdown').classList.remove('open');
+}
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.nav-mobile')) closeNavMenu();
+});
 
 /* ── Config helpers ─────────────────────────────── */
 
