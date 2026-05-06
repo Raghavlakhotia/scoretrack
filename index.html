@@ -1476,24 +1476,29 @@ function clearSave() {
 // Init — restore saved game or show setup
 (function init() {
     const raw = localStorage.getItem(SAVE_KEY);
-    if (raw) {
-        try {
-            const { G: saved, screen } = JSON.parse(raw);
-            G = saved;
-            if (screen === 'game-screen') {
-                show('game-screen');
-                renderGame();
-                return;
-            } else if (screen === 'results-screen') {
-                show('results-screen');
-                renderResults();
-                return;
-            }
-        } catch(e) {
-            clearSave();
-        }
+    if (!raw) { renderNameInputs(); return; }
+
+    let saved, screen;
+    try {
+        ({ G: saved, screen } = JSON.parse(raw));
+    } catch(e) {
+        clearSave();
+        renderNameInputs();
+        return;
     }
-    renderNameInputs();
+
+    if (!saved || !screen) { clearSave(); renderNameInputs(); return; }
+
+    G = saved;
+    if (screen === 'game-screen') {
+        show('game-screen');
+        renderGame();
+    } else if (screen === 'results-screen') {
+        show('results-screen');
+        renderResults();
+    } else {
+        renderNameInputs();
+    }
 })();
 </script>
 
