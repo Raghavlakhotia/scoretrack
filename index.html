@@ -874,6 +874,7 @@ function startGame() {
 
     show('game-screen');
     renderGame();
+    saveGame('game-screen');
 }
 
 /* ── Game ───────────────────────────────────────── */
@@ -977,7 +978,7 @@ function submitRound() {
 
         // End immediately if anyone hits 0
         if (G.players.some(p => remaining(p) === 0)) {
-            renderResults(); show('results-screen'); return;
+            saveGame('results-screen'); renderResults(); show('results-screen'); return;
         }
     } else {
         G.rounds.push(rawInputs);
@@ -1002,10 +1003,10 @@ function submitRound() {
     }
 
     if (G.currentRound >= G.totalRounds) {
-        renderResults(); show('results-screen');
+        saveGame('results-screen'); renderResults(); show('results-screen');
     } else {
         G.currentRound++;
-        renderGame();
+        saveGame('game-screen'); renderGame();
     }
 }
 
@@ -1421,6 +1422,7 @@ function resetRound() {
 
 function endGameEarly() {
     if (G.rounds.length === 0) return;
+    saveGame('results-screen');
     renderResults();
     show('results-screen');
 }
@@ -1429,10 +1431,12 @@ function resetGame() {
     G.rounds = [];
     G.currentRound = 1;
     G.players.forEach(p => { p.rawTotal = 0; p.rankPts = 0; });
+    saveGame('game-screen');
     renderGame();
 }
 
 function newGame() {
+    clearSave();
     G = { playerCount:2, totalRounds:5, currentRound:1, players:[], rounds:[], lowScoreWins:false, gameType:'general', dartTarget:200 };
     document.getElementById('player-count').textContent = 2;
     document.getElementById('rounds-input').value = 5;
@@ -1457,8 +1461,40 @@ function show(id) {
 
 function fmt(n) { return n % 1 === 0 ? n : n.toFixed(1); }
 
-// Init
-renderNameInputs();
+/* ── localStorage persistence ───────────────────── */
+
+const SAVE_KEY = 'scoretrack_v1';
+
+function saveGame(screen) {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ G, screen }));
+}
+
+function clearSave() {
+    localStorage.removeItem(SAVE_KEY);
+}
+
+// Init — restore saved game or show setup
+(function init() {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw) {
+        try {
+            const { G: saved, screen } = JSON.parse(raw);
+            G = saved;
+            if (screen === 'game-screen') {
+                show('game-screen');
+                renderGame();
+                return;
+            } else if (screen === 'results-screen') {
+                show('results-screen');
+                renderResults();
+                return;
+            }
+        } catch(e) {
+            clearSave();
+        }
+    }
+    renderNameInputs();
+})();
 </script>
 
 
