@@ -922,7 +922,7 @@ function renderGame() {
             </div>
             <div class="score-field">
                 <span class="score-field-label">${c.scoreLabel}</span>
-                <input class="score-input" type="number" id="si${i}" placeholder="0" step="any" min="0">
+                <input class="score-input" type="number" id="si${i}" placeholder="0" step="1" min="0" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
             </div>
         `;
         rows.appendChild(row);
@@ -950,7 +950,7 @@ function submitRound() {
     const c = cfg();
     const n = G.players.length;
     const rawInputs = G.players.map((_, i) => {
-        const v = parseFloat(document.getElementById(`si${i}`)?.value);
+        const v = parseInt(document.getElementById(`si${i}`)?.value, 10);
         return isNaN(v) ? 0 : Math.max(0, v);
     });
 
