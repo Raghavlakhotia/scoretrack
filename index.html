@@ -288,6 +288,21 @@
         }
         .score-input:focus { border-color: var(--purple); }
 
+        @media (max-width: 480px) {
+            .score-row { flex-wrap: wrap; gap: 8px 12px; align-items: flex-start; }
+            .player-label-name { white-space: normal; word-break: break-word; }
+            .score-field {
+                flex: 0 0 100%;
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                padding-top: 10px;
+                border-top: 1px solid rgba(255,255,255,.05);
+                gap: 10px;
+            }
+            .score-input { width: 140px; }
+        }
+
         /* Scoreboard panel */
         .sb-panel {
             background: var(--s1);
