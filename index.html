@@ -625,7 +625,7 @@
             <div class="toggle-row" id="low-score-toggle" onclick="toggleLowScore()">
                 <div class="toggle-info">
                     <span class="toggle-title">Low score wins</span>
-                    <span class="toggle-desc">Off — highest score wins each round</span>
+                    <span class="toggle-desc">Lowest score wins each round</span>
                 </div>
                 <div class="toggle-switch"></div>
             </div>
@@ -812,7 +812,7 @@ function selectGameType(type) {
         G.lowScoreWins = false;
         const toggle = document.getElementById('low-score-toggle');
         toggle.classList.remove('active');
-        toggle.querySelector('.toggle-desc').textContent = 'Off — highest score wins each round';
+        toggle.querySelector('.toggle-desc').textContent = 'Lowest score wins each round';
     }
 }
 
@@ -821,9 +821,7 @@ function toggleLowScore() {
     const row  = document.getElementById('low-score-toggle');
     const desc = row.querySelector('.toggle-desc');
     row.classList.toggle('active', G.lowScoreWins);
-    desc.textContent = G.lowScoreWins
-        ? 'On — lowest score wins each round'
-        : 'Off — highest score wins each round';
+    desc.textContent = 'Lowest score wins each round';
 }
 
 function adjustPlayers(d) {
