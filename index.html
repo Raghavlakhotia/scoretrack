@@ -533,37 +533,6 @@
         .award-desc { font-size: .75rem; color: var(--muted); line-height: 1.4; }
 
         @media (max-width: 560px) { .awards-grid { grid-template-columns: 1fr; } }
-
-        /* ── Ko-fi button ────────────────────────── */
-        .kofi-btn {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            z-index: 999;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: #FF5E5B;
-            color: #fff;
-            font: 600 .88rem 'Inter', sans-serif;
-            padding: 10px 18px;
-            border-radius: 99px;
-            text-decoration: none;
-            box-shadow: 0 4px 20px rgba(255,94,91,.4);
-            transition: transform .15s, box-shadow .15s;
-            white-space: nowrap;
-        }
-        .kofi-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 28px rgba(255,94,91,.5);
-        }
-        .kofi-btn:active { transform: scale(.97); }
-        .kofi-icon { font-size: 1rem; }
-
-        @media (max-width: 480px) {
-            .kofi-btn span { display: none; }
-            .kofi-btn { padding: 12px 14px; }
-        }
     </style>
 </head>
 <body>
@@ -1422,11 +1391,6 @@ function fmt(n) { return n % 1 === 0 ? n : n.toFixed(1); }
 renderNameInputs();
 </script>
 
-<!-- Ko-fi floating button — replace YOUR_USERNAME with your Ko-fi username -->
-<a class="kofi-btn" href="https://ko-fi.com/YOUR_USERNAME" target="_blank" rel="noopener">
-    <span class="kofi-icon">☕</span>
-    <span>Buy me a coffee</span>
-</a>
 
 </body>
 </html>
