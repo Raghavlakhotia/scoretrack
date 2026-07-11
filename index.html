@@ -288,6 +288,30 @@
         }
         .score-input:focus { border-color: var(--purple); }
 
+        /* Suspense Card tick/cross phase */
+        .suspense-row {
+            display: flex; align-items: center; gap: 14px;
+            background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.09);
+            border-radius: 12px; padding: 14px 16px; margin-bottom: 10px;
+        }
+        .suspense-locked {
+            flex: 1; font-size: 1.05rem; font-weight: 700;
+        }
+        .suspense-locked .sl-score { font-size: 1.5rem; color: #a78bfa; margin-left: 8px; }
+        .suspense-locked .sl-result { font-size: .85rem; margin-left: 8px; opacity: .7; }
+        .btn-tick, .btn-cross {
+            border: none; border-radius: 10px; font-size: 1.4rem;
+            width: 50px; height: 50px; cursor: pointer; transition: opacity .15s, transform .1s;
+            flex-shrink: 0;
+        }
+        .btn-tick  { background: rgba(16,185,129,.2); color: #10b981; }
+        .btn-cross { background: rgba(239,68,68,.2);  color: #ef4444; }
+        .btn-tick:hover  { background: rgba(16,185,129,.35); transform: scale(1.08); }
+        .btn-cross:hover { background: rgba(239,68,68,.35);  transform: scale(1.08); }
+        .btn-tick.chosen, .btn-cross.chosen { opacity: .35; cursor: default; transform: none; }
+        .btn-tick.active  { background: rgba(16,185,129,.6); opacity: 1; }
+        .btn-cross.active { background: rgba(239,68,68,.6);  opacity: 1; }
+
         @media (max-width: 480px) {
             .score-row { flex-wrap: wrap; gap: 8px 12px; align-items: flex-start; }
             .player-label-name { white-space: normal; word-break: break-word; }
@@ -602,6 +626,8 @@
             <select id="game-type-select" onchange="selectGameType(this.value)">
                 <option value="general">General</option>
                 <option value="darts">Dart Minimizer</option>
+                <option value="suspense">Suspense Card 🃏</option>
+                <option value="hearts">Hearts ♥️</option>
             </select>
         </div>
 
@@ -613,6 +639,13 @@
         <div class="form-group" id="rounds-group">
             <label>Number of Rounds</label>
             <input type="number" id="rounds-input" value="5" min="1" max="99" placeholder="e.g. 5">
+            <div class="toggle-row" id="open-rounds-toggle" style="margin-top:10px" onclick="toggleOpenRounds()">
+                <div class="toggle-info">
+                    <span class="toggle-title">No fixed rounds</span>
+                    <span class="toggle-desc">End the game whenever you want</span>
+                </div>
+                <div class="toggle-switch"></div>
+            </div>
         </div>
 
         <div class="form-group" id="dart-target-group" style="display:none">
@@ -757,11 +790,13 @@ const COLORS = [
 ];
 
 const GAME_TYPES = {
-    general: { name:'General',        icon:'🎮', lowScoreWins:false, model:'positional', roundLabel:'Round', scoreLabel:'Score',  ptsLabel:'Rank Pts',  showToggle:true,  hasDartTarget:false },
-    darts:   { name:'Dart Minimizer', icon:'🎯', lowScoreWins:false, model:'darts',      roundLabel:'Round', scoreLabel:'Score',  ptsLabel:'Remaining', showToggle:false, hasDartTarget:true  },
+    general:  { name:'General',        icon:'🎮', lowScoreWins:false, model:'positional', roundLabel:'Round', scoreLabel:'Score',  ptsLabel:'Rank Pts',  showToggle:true,  hasDartTarget:false },
+    darts:    { name:'Dart Minimizer', icon:'🎯', lowScoreWins:false, model:'darts',      roundLabel:'Round', scoreLabel:'Score',  ptsLabel:'Remaining', showToggle:false, hasDartTarget:true  },
+    suspense: { name:'Suspense Card',  icon:'🃏', lowScoreWins:false, model:'suspense',   roundLabel:'Round', scoreLabel:'Score',  ptsLabel:'Score',     showToggle:false, hasDartTarget:false },
+    hearts:   { name:'Hearts',         icon:'♥️', lowScoreWins:true,  model:'cumulative', roundLabel:'Hand',  scoreLabel:'Score',  ptsLabel:'Score',     showToggle:false, hasDartTarget:false, roundTotal:26 },
 };
 
-let G = { playerCount:2, totalRounds:5, currentRound:1, players:[], rounds:[], lowScoreWins:false, gameType:'general', dartTarget:200 };
+let G = { playerCount:2, totalRounds:5, currentRound:1, players:[], rounds:[], lowScoreWins:false, gameType:'general', dartTarget:200, openRounds:false, suspensePhase:'score', suspensePending:[], suspenseChoices:[] };
 // player: { name, ci, rawTotal, rankPts }
 // rounds: array of [score_p0, score_p1, ...] per completed round
 // darts rounds store applied scores (0 for busted throws)
@@ -790,13 +825,13 @@ function sortedPlayers() {
     if (c.model === 'darts') {
         return [...G.players].sort((a, b) => remaining(a) - remaining(b));
     }
-    if (c.model === 'cumulative' && c.lowScoreWins) {
+    if (G.lowScoreWins) {
         return [...G.players].sort((a, b) =>
-            a.rankPts !== b.rankPts ? a.rankPts - b.rankPts : a.rawTotal - b.rawTotal
+            a.rawTotal !== b.rawTotal ? a.rawTotal - b.rawTotal : a.rankPts - b.rankPts
         );
     }
     return [...G.players].sort((a, b) =>
-        b.rankPts !== a.rankPts ? b.rankPts - a.rankPts : b.rawTotal - a.rawTotal
+        b.rawTotal !== a.rawTotal ? b.rawTotal - a.rawTotal : b.rankPts - a.rankPts
     );
 }
 
@@ -814,6 +849,13 @@ function selectGameType(type) {
         toggle.classList.remove('active');
         toggle.querySelector('.toggle-desc').textContent = 'Lowest score wins each round';
     }
+}
+
+function toggleOpenRounds() {
+    G.openRounds = !G.openRounds;
+    const toggle = document.getElementById('open-rounds-toggle');
+    toggle.classList.toggle('active', G.openRounds);
+    document.getElementById('rounds-input').style.display = G.openRounds ? 'none' : '';
 }
 
 function toggleLowScore() {
@@ -854,6 +896,8 @@ function startGame() {
         if (!dt || dt < 1) { dtEl.style.borderColor = '#ef4444'; dtEl.focus(); return; }
         G.dartTarget  = dt;
         G.totalRounds = 999;
+    } else if (G.openRounds) {
+        G.totalRounds = Infinity;
     } else {
         const ri = document.getElementById('rounds-input');
         const rounds = parseInt(ri.value);
@@ -890,16 +934,22 @@ function renderGame() {
         const pct     = leader ? Math.min(100, (leader.rawTotal / G.dartTarget) * 100) : 0;
         document.getElementById('progress-fill').style.width = `${pct}%`;
     } else {
-        document.getElementById('round-tag').textContent   = `${c.roundLabel} ${r} of ${t}`;
+        document.getElementById('round-tag').textContent   = G.openRounds ? `Round ${r}` : `${c.roundLabel} ${r} of ${t}`;
         document.getElementById('entry-title').textContent = `${c.roundLabel} ${r}`;
         document.getElementById('entry-sub').textContent   = `Enter each player's ${c.scoreLabel.toLowerCase()} for this ${c.roundLabel.toLowerCase()}`;
-        document.getElementById('submit-btn').textContent  = `Submit ${c.roundLabel} →`;
-        document.getElementById('progress-fill').style.width = `${((r-1)/t)*100}%`;
+        document.getElementById('submit-btn').textContent  = c.model === 'suspense' ? 'Lock Scores →' : `Submit ${c.roundLabel} →`;
+        const track = document.querySelector('.progress-track');
+        if (G.openRounds) {
+            if (track) track.style.display = 'none';
+        } else {
+            if (track) track.style.display = '';
+            document.getElementById('progress-fill').style.width = `${((r-1)/t)*100}%`;
+        }
     }
 
     const trail = document.getElementById('round-trail');
     trail.innerHTML = '';
-    const trailCount = c.model === 'darts' ? r : t;
+    const trailCount = (c.model === 'darts' || G.openRounds) ? r : t;
     for (let i = 1; i <= trailCount; i++) {
         const d = document.createElement('div');
         d.className = 'trail-dot' + (i < r ? ' done' : i === r ? ' now' : '');
@@ -909,6 +959,43 @@ function renderGame() {
 
     const rows = document.getElementById('score-rows');
     rows.innerHTML = '';
+
+    if (c.model === 'suspense' && G.suspensePhase === 'tickcross') {
+        document.getElementById('submit-btn').style.display = 'none';
+        document.getElementById('entry-sub').textContent = 'Tick ✓ or Cross ✗ for each player';
+        G.players.forEach((p, i) => {
+            const col   = COLORS[p.ci];
+            const score = G.suspensePending[i] ?? 0;
+            const chosen = G.suspenseChoices[i];
+            const row   = document.createElement('div');
+            row.className = 'suspense-row';
+            row.id = `sr${i}`;
+            const resultHtml = chosen !== undefined
+                ? `<span class="sl-result">→ ${chosen ? (score+1)*10+score : -((score+1)*10+score)}</span>`
+                : '';
+            row.innerHTML = `
+                <div class="player-badge" style="background:${col.bg};color:${col.text};border-color:${col.dot}33">${i+1}</div>
+                <div class="suspense-locked">
+                    <span>${p.name}</span>
+                    <span class="sl-score">${score}</span>
+                    ${resultHtml}
+                </div>
+                <button class="btn-tick ${chosen === true ? 'active' : chosen !== undefined ? 'chosen' : ''}"
+                    onclick="suspenseChoose(${i}, true)" ${chosen !== undefined ? 'disabled' : ''}>✓</button>
+                <button class="btn-cross ${chosen === false ? 'active' : chosen !== undefined ? 'chosen' : ''}"
+                    onclick="suspenseChoose(${i}, false)" ${chosen !== undefined ? 'disabled' : ''}>✗</button>
+            `;
+            rows.appendChild(row);
+        });
+        return;
+    }
+
+    document.getElementById('submit-btn').style.display = '';
+    if (c.model === 'suspense') {
+        document.getElementById('submit-btn').textContent = 'Lock Scores →';
+        document.getElementById('entry-sub').textContent  = 'Enter each player\'s score, then lock';
+    }
+
     G.players.forEach((p, i) => {
         const col  = COLORS[p.ci];
         const hint = c.model === 'darts' ? `Remaining: ${remaining(p)}` : `Player ${i+1}`;
@@ -922,14 +1009,37 @@ function renderGame() {
             </div>
             <div class="score-field">
                 <span class="score-field-label">${c.scoreLabel}</span>
-                <input class="score-input" type="number" id="si${i}" placeholder="0" step="1" min="0" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                <input class="score-input" ${c.model === 'darts' ? 'type="number" min="0" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,\'\')"' : 'type="text" inputmode="decimal" oninput="sanitizeScoreInput(this);updateRoundTotalHint()"'} id="si${i}" placeholder="0">
             </div>
         `;
         rows.appendChild(row);
     });
 
+    if (c.roundTotal) {
+        const hintRow = document.createElement('div');
+        hintRow.className = 'player-label-hint';
+        hintRow.id = 'round-total-hint';
+        hintRow.style.margin = '4px 0 14px';
+        hintRow.style.fontSize = '1.05rem';
+        hintRow.style.fontWeight = '700';
+        rows.appendChild(hintRow);
+    }
+
     document.getElementById('si0')?.focus();
+    updateRoundTotalHint();
     updateScoreboard();
+}
+
+function updateRoundTotalHint() {
+    const c = cfg();
+    const hintEl = document.getElementById('round-total-hint');
+    if (!c.roundTotal || !hintEl) return;
+    const entered = G.players.reduce((sum, _, i) => {
+        const v = parseFloat(document.getElementById(`si${i}`)?.value);
+        return sum + (isNaN(v) || v < 0 ? 0 : v);
+    }, 0);
+    const left = Math.max(0, c.roundTotal - entered);
+    hintEl.textContent = left === 0 ? `✓ Points allocated: ${c.roundTotal}` : `Points left to allocate: ${left} (of ${c.roundTotal})`;
 }
 
 document.addEventListener('keydown', e => {
@@ -946,13 +1056,58 @@ document.addEventListener('keydown', e => {
     }
 });
 
+function suspenseChoose(pi, choice) {
+    G.suspenseChoices[pi] = choice;
+    // re-render tick/cross phase to reflect choice
+    renderGame();
+    // if all players chosen, commit the round
+    if (G.suspenseChoices.every(v => v !== undefined)) {
+        const finalScores = G.suspensePending.map((s, i) => {
+            const val = (s + 1) * 10 + s;
+            return G.suspenseChoices[i] ? val : -val;
+        });
+        G.rounds.push(finalScores);
+        finalScores.forEach((s, i) => { G.players[i].rawTotal += s; G.players[i].rankPts += s; });
+        G.suspensePhase = 'score';
+        G.suspensePending = [];
+        G.suspenseChoices = [];
+        if (G.currentRound >= G.totalRounds) {
+            saveGame('results-screen'); renderResults(); show('results-screen');
+        } else {
+            G.currentRound++;
+            saveGame('game-screen'); renderGame();
+        }
+    }
+}
+
 function submitRound() {
     const c = cfg();
     const n = G.players.length;
+
+    if (c.model === 'suspense') {
+        const scores = G.players.map((_, i) => {
+            const v = parseInt(document.getElementById(`si${i}`)?.value, 10);
+            return isNaN(v) ? 0 : Math.max(0, v);
+        });
+        G.suspensePending  = scores;
+        G.suspenseChoices  = new Array(n).fill(undefined);
+        G.suspensePhase    = 'tickcross';
+        renderGame();
+        return;
+    }
+
     const rawInputs = G.players.map((_, i) => {
         const v = parseInt(document.getElementById(`si${i}`)?.value, 10);
-        return isNaN(v) ? 0 : Math.max(0, v);
+        return isNaN(v) ? 0 : (c.model === 'darts' ? Math.max(0, v) : v);
     });
+
+    if (c.roundTotal) {
+        const sum = rawInputs.reduce((a, b) => a + Math.max(0, b), 0);
+        if (sum !== c.roundTotal) {
+            alert(`Positive scores must add up to ${c.roundTotal} (currently ${sum}).`);
+            return;
+        }
+    }
 
     if (c.model === 'darts') {
         // Bust check: if throw exceeds remaining, it doesn't count (score = 0)
@@ -1030,19 +1185,19 @@ function updateScoreboard() {
                 `${Math.min(100, (sorted[0].rawTotal / G.dartTarget) * 100)}%`;
         }
     } else {
-        document.getElementById('hi-score-label').textContent = c.model === 'cumulative' ? 'Leader'              : 'High Score';
-        document.getElementById('hi-pts-label').textContent   = c.model === 'cumulative' ? `Best ${c.roundLabel}` : 'High Pts';
+        document.getElementById('hi-score-label').textContent = (c.model === 'cumulative' || c.model === 'suspense') ? 'Leader'              : 'High Score';
+        document.getElementById('hi-pts-label').textContent   = (c.model === 'cumulative' || c.model === 'suspense') ? `Best ${c.roundLabel}` : 'High Pts';
         if (!done) {
             document.getElementById('hi-score').textContent = '—';
             document.getElementById('hi-pts').textContent   = '—';
         } else {
             document.getElementById('hi-score').textContent = `${sorted[0].name} (${fmt(sorted[0].rawTotal)})`;
-            if (c.model === 'cumulative') {
+            if (c.model === 'cumulative' || c.model === 'suspense') {
                 let bestVal = null, bestPlayer = null;
                 G.rounds.forEach(rnd => rnd.forEach((s, i) => {
-                    if (bestVal === null || (c.lowScoreWins ? s < bestVal : s > bestVal)) { bestVal = s; bestPlayer = G.players[i]; }
+                    if (bestVal === null || (G.lowScoreWins ? s < bestVal : s > bestVal)) { bestVal = s; bestPlayer = G.players[i]; }
                 }));
-                document.getElementById('hi-pts').textContent = bestPlayer ? `${bestPlayer.name} (${bestVal})` : '—';
+                document.getElementById('hi-pts').textContent = bestPlayer ? `${bestPlayer.name} (${fmt(bestVal)})` : '—';
             } else {
                 const topPts = [...G.players].sort((a, b) => b.rankPts - a.rankPts)[0];
                 document.getElementById('hi-pts').textContent = `${topPts.name} (${fmt(topPts.rankPts)})`;
@@ -1052,9 +1207,9 @@ function updateScoreboard() {
 
     const thead = document.getElementById('sb-head');
     if (thead) {
-        if (c.model === 'darts')      thead.innerHTML = `<tr><th>#</th><th>Player</th><th>Remaining</th><th>Scored</th></tr>`;
+        if (c.model === 'darts')           thead.innerHTML = `<tr><th>#</th><th>Player</th><th>Remaining</th><th>Scored</th></tr>`;
         else if (c.model === 'positional') thead.innerHTML = `<tr><th>#</th><th>Player</th><th>Score</th><th>Pts</th></tr>`;
-        else                          thead.innerHTML = `<tr><th>#</th><th>Player</th><th>${c.ptsLabel}</th></tr>`;
+        else                               thead.innerHTML = `<tr><th>#</th><th>Player</th><th>${c.ptsLabel}</th></tr>`;
     }
 
     const ordinal = n => ['1st','2nd','3rd'][n] ?? `${n+1}th`;
@@ -1269,7 +1424,7 @@ function computeAwards() {
     if (r >= 3) {
         const midRound  = Math.floor(r / 2);
         const midPts    = computeMidPts(midRound);
-        const lowWins   = c.model === 'darts' || (c.model === 'cumulative' && c.lowScoreWins);
+        const lowWins   = c.model === 'darts' || (c.model === 'cumulative' && G.lowScoreWins);
         const midSorted = G.players.map((p, i) => ({ p, i, pts: midPts[i] }))
             .sort((a, b) => lowWins ? a.pts - b.pts : b.pts - a.pts);
         const midRankOf = {}, finalRankOf = {};
@@ -1347,9 +1502,7 @@ function renderResults() {
             ? `Finished with 0 remaining — perfect game!`
             : `${rem} remaining — closest to the target`;
     } else {
-        document.getElementById('winner-sub').textContent = c.model === 'positional'
-            ? `${fmt(winner.rankPts)} ranking points`
-            : `${fmt(winner.rawTotal)} total ${c.scoreLabel.toLowerCase()}`;
+        document.getElementById('winner-sub').textContent = `${fmt(winner.rawTotal)} total ${c.scoreLabel.toLowerCase()}`;
     }
 
     // Podium
@@ -1365,7 +1518,7 @@ function renderResults() {
         div.className = `pod-place ${podClass(p)}`;
         let stat;
         if (c.model === 'darts')           stat = `${remaining(p)} remaining`;
-        else if (c.model === 'positional') stat = `${fmt(p.rankPts)} pts`;
+        else if (c.model === 'positional') stat = `${fmt(p.rawTotal)} ${c.scoreLabel.toLowerCase()}`;
         else                               stat = `${fmt(p.rawTotal)} ${c.ptsLabel}`;
         div.innerHTML = `
             <div class="pod-name">${p.name}</div>
@@ -1414,6 +1567,13 @@ function renderResults() {
 /* ── Game controls ──────────────────────────────── */
 
 function resetRound() {
+    if (cfg().model === 'suspense' && G.suspensePhase === 'tickcross') {
+        G.suspensePhase   = 'score';
+        G.suspensePending = [];
+        G.suspenseChoices = [];
+        renderGame();
+        return;
+    }
     document.querySelectorAll('.score-input').forEach(i => i.value = '');
     document.getElementById('si0')?.focus();
 }
@@ -1428,6 +1588,9 @@ function endGameEarly() {
 function resetGame() {
     G.rounds = [];
     G.currentRound = 1;
+    G.suspensePhase   = 'score';
+    G.suspensePending = [];
+    G.suspenseChoices = [];
     G.players.forEach(p => { p.rawTotal = 0; p.rankPts = 0; });
     saveGame('game-screen');
     renderGame();
@@ -1435,7 +1598,7 @@ function resetGame() {
 
 function newGame() {
     clearSave();
-    G = { playerCount:2, totalRounds:5, currentRound:1, players:[], rounds:[], lowScoreWins:false, gameType:'general', dartTarget:200 };
+    G = { playerCount:2, totalRounds:5, currentRound:1, players:[], rounds:[], lowScoreWins:false, gameType:'general', dartTarget:200, openRounds:false, suspensePhase:'score', suspensePending:[], suspenseChoices:[] };
     document.getElementById('player-count').textContent = 2;
     document.getElementById('rounds-input').value = 5;
     document.getElementById('dart-target-input').value = 200;
@@ -1446,6 +1609,8 @@ function newGame() {
     document.getElementById('scoring-mode-group').style.display = 'block';
     document.getElementById('dart-target-group').style.display  = 'none';
     document.getElementById('rounds-group').style.display       = 'block';
+    document.getElementById('open-rounds-toggle').classList.remove('active');
+    document.getElementById('rounds-input').style.display = '';
     renderNameInputs();
     show('setup-screen');
 }
@@ -1458,6 +1623,11 @@ function show(id) {
 }
 
 function fmt(n) { return n % 1 === 0 ? n : n.toFixed(1); }
+
+function sanitizeScoreInput(el) {
+    // Allow integers with optional leading minus sign
+    el.value = el.value.replace(/[^0-9-]/g, '').replace(/(?!^)-/g, '');
+}
 
 /* ── localStorage persistence ───────────────────── */
 
@@ -1488,6 +1658,11 @@ function clearSave() {
     if (!saved || !screen) { clearSave(); renderNameInputs(); return; }
 
     G = saved;
+    G.openRounds      = G.openRounds      ?? false;
+    G.suspensePhase   = G.suspensePhase   ?? 'score';
+    G.suspensePending = G.suspensePending ?? [];
+    G.suspenseChoices = G.suspenseChoices ?? [];
+    if (G.openRounds) G.totalRounds = Infinity;
     if (screen === 'game-screen') {
         show('game-screen');
         renderGame();
